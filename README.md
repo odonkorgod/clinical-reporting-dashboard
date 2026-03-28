@@ -15,7 +15,7 @@ Styling: Tailwind CSS (Medical-grade, high-contrast UI).
 
 Data Visualization: Recharts (Analytical performance tracking).
 
-Backend Simulation: Python-generated synthetic clinical datasets (JSON/CSV).
+Backend Simulation: Python-generated synthetic clinical datasets (JSON).
 
 State Management: React Hooks with LocalStorage persistence for session continuity.
 
