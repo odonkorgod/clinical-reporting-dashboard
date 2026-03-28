@@ -1,73 +1,36 @@
-# React + TypeScript + Vite
+Clinical Workflow & Telemetry Dashboard (VR Research Prototype)
+🎯 Project Objective
+The primary objective of this project is to develop a high-fidelity, web-based dashboard that simulates Clinical Decision Support (CDS) and Electronic Health Record (EHR) workflows. It serves as a technical precursor to Virtual Reality (VR) simulation modules, focusing on:
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Workflow Validation: Replicating real-world informatics scenarios to identify bottlenecks in clinical data entry.
 
-Currently, two official plugins are available:
+User Telemetry: Implementing structured data collection (interaction logs) to evaluate user performance under varying cognitive loads.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Stress-Response Modeling: Testing UI/UX effectiveness during simulated "High-Stress" clinical alarms.
 
-## React Compiler
+🛠️ Technical Stack
+Frontend: React 18, TypeScript, Vite.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Styling: Tailwind CSS (Medical-grade, high-contrast UI).
 
-## Expanding the ESLint configuration
+Data Visualization: Recharts (Analytical performance tracking).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Backend Simulation: Python-generated synthetic clinical datasets (JSON/CSV).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+State Management: React Hooks with LocalStorage persistence for session continuity.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+🚀 Key Features
+1. Patient Status & Vitals Monitoring
+Real-time visualization of patient vitals (Heart Rate, BP, SpO₂, Temp).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Informatics Logic: Automated risk-stratification badges (High/Medium/Low) based on clinical thresholds.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Interaction Telemetry (Research Tool)
+Granular Logging: Every clinical action is timestamped and attributed to a unique User ID.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Data Portability: Features a robust CSV Export engine, enabling direct integration with statistical analysis tools like R or pandas.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+3. Simulation Stress Mode
+Toggles a high-intensity UI state to simulate emergency room conditions.
+
+Visual indicators and animations designed to test user accuracy and "Human Factors" during clinical alarms.
