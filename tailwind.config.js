@@ -6,10 +6,14 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
       colors: {
         'clinical-blue': {
           50: '#eff6ff',
           100: '#dbeafe',
+          400: '#60a5fa',
           500: '#3b82f6',
           600: '#2563eb',
           700: '#1d4ed8',

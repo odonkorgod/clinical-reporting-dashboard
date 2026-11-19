@@ -8,16 +8,19 @@ import {
   Heart,
   AlertTriangle,
 } from 'lucide-react';
+import { wardCensus } from '../data/derived';
+import type { Ward } from '../data/types';
+import type { Section } from '../sections';
 
 interface NavItem {
-  id: string;
+  id: Section;
   label: string;
   icon: React.ReactNode;
 }
 
 interface SidebarProps {
-  activeSection: string;
-  onNavigate: (section: string) => void;
+  activeSection: Section;
+  onNavigate: (section: Section) => void;
   stressMode: boolean;
 }
 
@@ -28,12 +31,16 @@ const navItems: NavItem[] = [
   { id: 'logs', label: 'Interaction Logs', icon: <ClipboardList size={18} /> },
 ];
 
-const wardStats = [
-  { label: 'ICU', count: 9, color: 'bg-red-500' },
-  { label: 'Emergency', count: 34, color: 'bg-amber-500' },
-  { label: 'General', count: 41, color: 'bg-blue-500' },
-  { label: 'Cardiology', count: 18, color: 'bg-purple-500' },
-];
+const wardColors: Record<Ward, string> = {
+  ICU: 'bg-red-500',
+  Emergency: 'bg-amber-500',
+  General: 'bg-blue-500',
+  Cardiology: 'bg-purple-500',
+  Neurology: 'bg-cyan-500',
+  Obstetrics: 'bg-pink-500',
+  Oncology: 'bg-emerald-500',
+  Pulmonology: 'bg-indigo-500',
+};
 
 export default function Sidebar({ activeSection, onNavigate, stressMode }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -86,6 +93,9 @@ export default function Sidebar({ activeSection, onNavigate, stressMode }: Sideb
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
+            title={collapsed ? item.label : undefined}
+            aria-label={collapsed ? item.label : undefined}
+            aria-current={activeSection === item.id ? 'page' : undefined}
             className={`
               flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left group
               ${activeSection === item.id
@@ -109,11 +119,11 @@ export default function Sidebar({ activeSection, onNavigate, stressMode }: Sideb
         <div className="px-4 py-4 border-t border-clinical-border">
           <p className="text-[10px] uppercase tracking-widest text-clinical-muted mb-3">Ward Occupancy</p>
           <div className="flex flex-col gap-2">
-            {wardStats.map((ward) => (
-              <div key={ward.label} className="flex items-center justify-between">
+            {wardCensus.map((ward) => (
+              <div key={ward.ward} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${ward.color}`} />
-                  <span className="text-xs text-clinical-muted">{ward.label}</span>
+                  <span className={`w-2 h-2 rounded-full ${wardColors[ward.ward]}`} />
+                  <span className="text-xs text-clinical-muted">{ward.ward}</span>
                 </div>
                 <span className="text-xs font-mono text-clinical-text">{ward.count}</span>
               </div>
