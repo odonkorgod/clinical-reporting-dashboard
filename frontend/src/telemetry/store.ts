@@ -4,8 +4,13 @@
 // Interaction Logs view is open. Each entry captures the simulation context at
 // the moment of the action: which section the user was on, whether stress mode
 // was active, and timings that can be used as response-time measures.
+//
+// Every event is also uploaded to the backend (Neon Postgres) for central
+// analysis. Unsent events wait in a persisted outbox and are retried with
+// backoff, so the dashboard keeps working offline or while the API is down.
 
 import { useMemo, useSyncExternalStore } from 'react';
+import { ApiError, uploadEvents } from '../api';
 import { INITIAL_SECTION } from '../sections';
 import type { Section } from '../sections';
 import { AUTO_ACTIONS } from './actions';
@@ -48,6 +53,7 @@ export const SIM_USER_ID = 'SIM-USER-001';
 
 const STORAGE_KEY = 'clinflow_interaction_log_v2';
 const LEGACY_STORAGE_KEY = 'clinflow_interaction_log';
+const OUTBOX_KEY = 'clinflow_outbox_v1';
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -97,11 +103,11 @@ function migrateLegacy(entry: LegacyEntry): LogEntry {
   };
 }
 
+const isEntry = (e: unknown): e is LogEntry => isRecord(e) && typeof e.id === 'string' && typeof e.action === 'string';
+
 function loadEntries(): LogEntry[] {
   const current = readJson(STORAGE_KEY);
-  if (Array.isArray(current)) {
-    return current.filter((e): e is LogEntry => isRecord(e) && typeof e.id === 'string' && typeof e.action === 'string');
-  }
+  if (Array.isArray(current)) return current.filter(isEntry);
 
   // Carry over logs recorded before the v2 format so no study data is lost.
   const legacy = readJson(LEGACY_STORAGE_KEY);
@@ -113,9 +119,17 @@ function loadEntries(): LogEntry[] {
   return [];
 }
 
+function loadOutbox(local: LogEntry[]): LogEntry[] {
+  const stored = readJson(OUTBOX_KEY);
+  if (Array.isArray(stored)) return stored.filter(isEntry);
+  // First run with server sync: upload everything recorded in this browser so far.
+  return [...local];
+}
+
 function persist(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox));
     localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     // Storage full or unavailable (e.g. private mode): keep the in-memory log.
@@ -126,7 +140,20 @@ function persist(): void {
 // Store
 
 let entries: LogEntry[] = loadEntries();
+// Events not yet confirmed by the server. Kept apart from `entries` so that
+// clearing the on-screen log never drops study data that hasn't been uploaded.
+let outbox: LogEntry[] = loadOutbox(entries);
 const listeners = new Set<() => void>();
+
+export interface SyncStatus {
+  /** Events waiting to be uploaded. */
+  pending: number;
+  uploading: boolean;
+  lastError: string | null;
+  lastSyncedAt: string | null;
+}
+
+let syncStatus: SyncStatus = { pending: outbox.length, uploading: false, lastError: null, lastSyncedAt: null };
 
 const context = {
   section: INITIAL_SECTION as Section,
@@ -135,9 +162,70 @@ const context = {
   alarmOnsetAt: null as number | null,
 };
 
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
 function emit(): void {
   persist();
-  for (const listener of listeners) listener();
+  notify();
+}
+
+function setSyncStatus(patch: Partial<SyncStatus>): void {
+  syncStatus = { ...syncStatus, ...patch, pending: outbox.length };
+  notify();
+}
+
+// ---------------------------------------------------------------------------
+// Upload
+
+const BATCH_SIZE = 200;
+const INITIAL_RETRY_MS = 2_000;
+const MAX_RETRY_MS = 60_000;
+let retryDelay = INITIAL_RETRY_MS;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Upload the outbox in batches. Safe to call at any time; overlapping calls are ignored. */
+export async function flushOutbox(): Promise<void> {
+  if (syncStatus.uploading || outbox.length === 0) return;
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+
+  const batch = outbox.slice(0, BATCH_SIZE);
+  const batchIds = new Set(batch.map((e) => e.id));
+  const removeBatch = () => {
+    outbox = outbox.filter((e) => !batchIds.has(e.id));
+    persist();
+  };
+  setSyncStatus({ uploading: true });
+
+  try {
+    await uploadEvents(batch);
+    removeBatch();
+    retryDelay = INITIAL_RETRY_MS;
+    setSyncStatus({ uploading: false, lastError: null, lastSyncedAt: new Date().toISOString() });
+    if (outbox.length > 0) void flushOutbox();
+  } catch (error) {
+    if (error instanceof ApiError && error.isPermanent) {
+      // The server will never accept this batch; don't let it block newer events.
+      // The events stay in the local log and its CSV export.
+      console.error(`Server rejected ${batch.length} interaction events; they remain in the local log only.`, error);
+      removeBatch();
+      setSyncStatus({ uploading: false, lastError: `${batch.length} events rejected by the server (kept locally)` });
+      if (outbox.length > 0) void flushOutbox();
+      return;
+    }
+    setSyncStatus({ uploading: false, lastError: error instanceof Error ? error.message : String(error) });
+    retryTimer = setTimeout(() => void flushOutbox(), retryDelay);
+    retryDelay = Math.min(retryDelay * 2, MAX_RETRY_MS);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => void flushOutbox());
+  setTimeout(() => void flushOutbox(), 0);
 }
 
 export function logEvent(input: LogEventInput): LogEntry {
@@ -158,7 +246,10 @@ export function logEvent(input: LogEventInput): LogEntry {
     msSinceAlarmOnset: context.alarmOnsetAt === null ? null : Math.round(now - context.alarmOnsetAt),
   };
   entries = [entry, ...entries];
+  outbox = [...outbox, entry];
   emit();
+  setSyncStatus({});
+  void flushOutbox();
   return entry;
 }
 
@@ -187,6 +278,7 @@ export function recordStressMode(enabled: boolean): void {
   }
 }
 
+/** Clears the log shown in this browser. Unsent events are still uploaded; the server copy is kept. */
 export function clearLog(): void {
   entries = [];
   emit();
@@ -199,6 +291,10 @@ function subscribe(listener: () => void): () => void {
 
 export function useInteractionLog(): LogEntry[] {
   return useSyncExternalStore(subscribe, () => entries);
+}
+
+export function useSyncStatus(): SyncStatus {
+  return useSyncExternalStore(subscribe, () => syncStatus);
 }
 
 /** IDs acknowledged in the current session, for patients and diagnostic results. */

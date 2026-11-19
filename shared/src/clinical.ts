@@ -10,7 +10,7 @@
 // Keep this file free of runtime imports: the Node generator script imports it
 // directly, and only `import type` lines are stripped safely.
 
-import type { Patient, RiskLevel } from '../data/types';
+import type { Patient, RiskLevel } from './types';
 
 export type VitalScore = 0 | 1 | 2 | 3;
 

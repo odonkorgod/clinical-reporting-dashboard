@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { assessedPatients } from '../data/derived';
+import { useDataset } from '../data/dataset';
 import { MANUAL_ACTIONS } from '../telemetry/actions';
+import { serverExportUrl } from '../api';
 import { downloadCsv } from '../telemetry/csv';
-import { clearLog, logEvent, SIM_USER_ID, useInteractionLog } from '../telemetry/store';
-import type { LogSource } from '../telemetry/store';
-import { ClipboardList, Plus, Trash2, Download } from 'lucide-react';
+import { clearLog, flushOutbox, logEvent, SIM_USER_ID, useInteractionLog, useSyncStatus } from '../telemetry/store';
+import type { LogSource, SyncStatus } from '../telemetry/store';
+import { ClipboardList, Plus, Trash2, Download, CloudCheck, CloudOff, RefreshCw, Database } from 'lucide-react';
 
 interface InteractionLoggerProps {
   stressMode: boolean;
@@ -21,8 +22,37 @@ const formatTime = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { 
 
 const formatSeconds = (ms: number | null) => (ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`);
 
+function SyncIndicator({ status }: { status: SyncStatus }) {
+  if (status.uploading) {
+    return (
+      <span className="flex items-center gap-1.5 text-[11px] text-clinical-muted">
+        <RefreshCw size={12} className="animate-spin" /> Syncing {status.pending}…
+      </span>
+    );
+  }
+  if (status.pending > 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => void flushOutbox()}
+        title={status.lastError ?? undefined}
+        className="flex items-center gap-1.5 text-[11px] text-amber-400 hover:text-amber-300"
+      >
+        <CloudOff size={12} /> {status.pending} unsent · retry
+      </button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-emerald-400" title={status.lastError ?? 'All events saved to the database'}>
+      <CloudCheck size={12} /> Synced to server
+    </span>
+  );
+}
+
 export default function InteractionLogger({ stressMode }: InteractionLoggerProps) {
+  const { patients: assessedPatients } = useDataset();
   const log = useInteractionLog();
+  const syncStatus = useSyncStatus();
   const [selectedAction, setSelectedAction] = useState<string>(MANUAL_ACTIONS[0]);
   const [selectedPatient, setSelectedPatient] = useState('');
   const [lastAdded, setLastAdded] = useState<string | null>(null);
@@ -34,7 +64,8 @@ export default function InteractionLogger({ stressMode }: InteractionLoggerProps
   };
 
   const handleClear = () => {
-    if (window.confirm(`Delete all ${log.length} logged events? Export them first if you need them.`)) clearLog();
+    const unsent = syncStatus.pending > 0 ? ` ${syncStatus.pending} unsent events will still be uploaded.` : '';
+    if (window.confirm(`Clear the ${log.length} events shown in this browser? The copy saved on the server is kept.${unsent}`)) clearLog();
   };
 
   const selectClass = `
@@ -101,9 +132,18 @@ export default function InteractionLogger({ stressMode }: InteractionLoggerProps
         <div className="px-4 py-3 bg-clinical-panel flex items-center justify-between border-b border-clinical-border">
           <div>
             <p className="text-sm font-semibold text-white">Event Log</p>
-            <p className="text-[11px] text-clinical-muted mt-0.5">{log.length} event{log.length !== 1 ? 's' : ''} recorded</p>
+            <p className="text-[11px] text-clinical-muted mt-0.5">{log.length} event{log.length !== 1 ? 's' : ''} in this browser</p>
           </div>
           <div className="flex items-center gap-2">
+            <SyncIndicator status={syncStatus} />
+            <a
+              href={serverExportUrl}
+              title="Download every event stored in the database (all sessions)"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border border-clinical-border text-clinical-muted hover:text-white hover:border-clinical-blue-600 transition-colors"
+            >
+              <Database size={12} />
+              Server CSV
+            </a>
             {log.length > 0 && (
               <>
                 <button

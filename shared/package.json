@@ -1,0 +1,11 @@
+{
+  "name": "@clinflow/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Types and clinical risk scoring shared by the frontend and the backend data tooling. Consumed as TypeScript source.",
+  "exports": {
+    "./clinical": "./src/clinical.ts",
+    "./types": "./src/types.ts"
+  }
+}

@@ -9,7 +9,8 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
-import { waitingTimes } from '../data/syntheticData';
+import type { DeptWaitTime } from '@clinflow/shared/types';
+import { useDataset } from '../data/dataset';
 import { Clock, TrendingDown } from 'lucide-react';
 
 interface AnalyticsOverviewProps {
@@ -17,7 +18,7 @@ interface AnalyticsOverviewProps {
 }
 
 const barColors = [
-  '#ef4444', // Emergency — fastest should be red (high urgency)
+  '#ef4444',
   '#3b82f6',
   '#8b5cf6',
   '#06b6d4',
@@ -27,8 +28,13 @@ const barColors = [
   '#64748b',
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipProps {
+  active?: boolean;
+  label?: string;
+  payload?: { value: number; payload: DeptWaitTime }[];
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-clinical-panel border border-clinical-border rounded-lg p-3 shadow-xl text-sm">
@@ -37,7 +43,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {payload[0].value} min avg wait
         </p>
         <p className="text-clinical-muted text-xs mt-0.5">
-          {waitingTimes.find(d => d.department === label)?.patientCount} patients queued
+          {payload[0].payload.patientCount} patients queued
         </p>
       </div>
     );
@@ -46,6 +52,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsOverview({ stressMode }: AnalyticsOverviewProps) {
+  const { waitingTimes } = useDataset();
   const sorted = [...waitingTimes].sort((a, b) => a.avgWait - b.avgWait);
   const avgOverall = Math.round(waitingTimes.reduce((s, d) => s + d.avgWait, 0) / waitingTimes.length);
   const best = sorted[0];

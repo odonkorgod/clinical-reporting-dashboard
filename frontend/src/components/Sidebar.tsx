@@ -8,8 +8,8 @@ import {
   Heart,
   AlertTriangle,
 } from 'lucide-react';
-import { wardCensus } from '../data/derived';
-import type { Ward } from '../data/types';
+import type { Ward } from '@clinflow/shared/types';
+import { useDataset } from '../data/dataset';
 import type { Section } from '../sections';
 
 interface NavItem {
@@ -44,6 +44,7 @@ const wardColors: Record<Ward, string> = {
 
 export default function Sidebar({ activeSection, onNavigate, stressMode }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { wardCensus } = useDataset();
 
   return (
     <aside

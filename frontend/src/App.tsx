@@ -5,8 +5,7 @@ import AnalyticsOverview from './components/AnalyticsOverview';
 import DiagnosticsQueue from './components/DiagnosticsQueue';
 import InteractionLogger from './components/InteractionLogger';
 import StressModeToggle from './components/StressModeToggle';
-import { criticalResultIds, highRiskPatientIds, wardCensus } from './data/derived';
-import { patients } from './data/syntheticData';
+import { useDataset } from './data/dataset';
 import { INITIAL_SECTION } from './sections';
 import type { Section } from './sections';
 import { recordNavigation, recordStressMode, useAcknowledgements } from './telemetry/store';
@@ -57,6 +56,7 @@ export default function App() {
   const [stressMode, setStressMode] = useState(false);
   const now = useNow(30_000);
   const acknowledgements = useAcknowledgements();
+  const { criticalResultIds, highRiskPatientIds, patients, wardCensus } = useDataset();
 
   // Open alerts = high-risk patients and critical results not yet acknowledged this session.
   const openAlerts =

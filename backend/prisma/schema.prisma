@@ -1,0 +1,98 @@
+// ClinFlow database schema (Neon Postgres).
+// Apply with `pnpm db:migrate`; seed the synthetic dataset with `pnpm db:seed`.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Metadata for the seeded synthetic dataset. Always a single row (id = 1).
+model DatasetMeta {
+  id          Int      @id @default(1)
+  seed        Int
+  generatedAt DateTime @map("generated_at") @db.Timestamptz(3)
+
+  @@map("dataset_meta")
+}
+
+/// Synthetic patients. Risk level is not stored: clients derive it from the
+/// vitals with @clinflow/shared/clinical so the scoring lives in one place.
+model Patient {
+  id          String             @id
+  name        String
+  age         Int
+  ward        String
+  heartRate   Int                @map("heart_rate")
+  systolic    Int
+  diastolic   Int
+  spo2        Int
+  temperature Float
+  diagnosis   String
+  admittedAt  DateTime           @map("admitted_at") @db.Timestamptz(3)
+  diagnostics DiagnosticResult[]
+
+  @@index([ward])
+  @@map("patients")
+}
+
+model DiagnosticResult {
+  id          String   @id
+  test        String
+  patientId   String   @map("patient_id")
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  /// Critical | Pending | In Progress | Completed
+  status      String
+  requestedAt DateTime @map("requested_at") @db.Timestamptz(3)
+
+  @@index([patientId])
+  @@map("diagnostic_results")
+}
+
+model DepartmentWaitTime {
+  department   String @id
+  avgWait      Int    @map("avg_wait_minutes")
+  patientCount Int    @map("patient_count")
+
+  @@map("department_wait_times")
+}
+
+enum LogSource {
+  manual
+  patients
+  diagnostics
+  system
+
+  @@map("log_source")
+}
+
+/// Research telemetry: one row per participant interaction. IDs are generated
+/// by the client, so retried uploads are idempotent. patient_id has no foreign
+/// key on purpose: events must survive re-seeding the synthetic dataset.
+model InteractionEvent {
+  id                 String    @id
+  sessionId          String    @map("session_id")
+  timestamp          DateTime  @db.Timestamptz(3)
+  userId             String    @map("user_id")
+  source             LogSource
+  section            String
+  action             String
+  detail             String?
+  patientId          String?   @map("patient_id")
+  targetId           String?   @map("target_id")
+  /// Null only for events migrated from the original browser-only log format.
+  stressMode         Boolean?  @map("stress_mode")
+  msSinceSectionOpen Int?      @map("ms_since_section_open")
+  msSinceAlarmOnset  Int?      @map("ms_since_alarm_onset")
+  receivedAt         DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@index([sessionId])
+  @@index([userId, timestamp])
+  @@index([timestamp])
+  @@map("interaction_events")
+}

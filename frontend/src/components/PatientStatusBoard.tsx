@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { assessedPatients, riskCounts } from '../data/derived';
-import type { AssessedPatient } from '../data/derived';
-import { datasetMeta } from '../data/syntheticData';
-import type { VitalScore } from '../lib/clinical';
+import type { VitalScore } from '@clinflow/shared/clinical';
+import { useDataset } from '../data/dataset';
+import type { AssessedPatient } from '../data/dataset';
 import { AUTO_ACTIONS } from '../telemetry/actions';
 import { logEvent, useAcknowledgements } from '../telemetry/store';
 import { Heart, Activity, Thermometer, TrendingUp, AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
@@ -171,6 +170,7 @@ function PatientRow({ patient, stressMode, expanded, acknowledged, onToggle, onA
 }
 
 export default function PatientStatusBoard({ stressMode }: PatientStatusBoardProps) {
+  const { patients: assessedPatients, riskCounts, meta: datasetMeta } = useDataset();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const { patientIds: acknowledged } = useAcknowledgements();
 

@@ -1,6 +1,5 @@
-import { diagnostics } from '../data/syntheticData';
-import { patientsById } from '../data/derived';
-import type { DiagnosticResult, DiagnosticStatus } from '../data/types';
+import type { DiagnosticResult, DiagnosticStatus } from '@clinflow/shared/types';
+import { useDataset } from '../data/dataset';
 import { AUTO_ACTIONS } from '../telemetry/actions';
 import { logEvent, useAcknowledgements } from '../telemetry/store';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -16,13 +15,13 @@ const statusStyle: Record<DiagnosticStatus, string> = {
   'In Progress': 'bg-blue-500/20 text-blue-400 border border-blue-500/40',
 };
 
-const openCount = diagnostics.filter((d) => d.status !== 'Completed').length;
-const criticalCount = diagnostics.filter((d) => d.status === 'Critical').length;
-
 const formatUtcTime = (iso: string) => new Date(iso).toISOString().slice(11, 16);
 
 export default function DiagnosticsQueue({ stressMode }: DiagnosticsQueueProps) {
+  const { diagnostics, patientsById } = useDataset();
   const { resultIds: acknowledged } = useAcknowledgements();
+  const openCount = diagnostics.filter((d) => d.status !== 'Completed').length;
+  const criticalCount = diagnostics.filter((d) => d.status === 'Critical').length;
   const unacknowledgedCritical = criticalCount - diagnostics.filter((d) => acknowledged.has(d.id)).length;
 
   const review = (d: DiagnosticResult) =>
